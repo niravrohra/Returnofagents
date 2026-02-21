@@ -1,50 +1,176 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { Document, Page, pdfjs } from "react-pdf";
-import "react-pdf/dist/Page/TextLayer.css";
-import "react-pdf/dist/Page/AnnotationLayer.css";
-
-// Configure PDF.js worker for react-pdf (must match pdfjs-dist version)
-if (typeof window !== "undefined") {
-  pdfjs.GlobalWorkerOptions.workerSrc = `https://unpkg.com/pdfjs-dist@${pdfjs.version}/build/pdf.worker.min.mjs`;
-}
+import { useEffect, useState, useRef } from "react";
 
 type PDFViewerProps = {
   url: string;
   isLight: boolean;
 };
 
+declare global {
+  interface Window {
+    pdfjsLib?: {
+      getDocument: (src: string) => { promise: Promise<{ numPages: number; getPage: (n: number) => Promise<unknown> }> };
+      GlobalWorkerOptions: { workerSrc: string };
+    };
+  }
+}
+
 export function PDFViewer({ url, isLight }: PDFViewerProps) {
   const [numPages, setNumPages] = useState<number>(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [containerWidth, setContainerWidth] = useState(600);
+  const containerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    const updateWidth = () => {
-      if (typeof window === "undefined") return;
-      const el = document.querySelector("[data-pdf-container]");
-      if (el) {
-        const w = (el as HTMLElement).clientWidth - 24;
-        setContainerWidth(Math.max(500, Math.min(w, 900)));
+    if (!url || typeof window === "undefined") return;
+
+    const loadPdf = async () => {
+      setLoading(true);
+      setError(null);
+
+      if (!window.pdfjsLib) {
+        const script = document.createElement("script");
+        script.src = "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js";
+        script.async = true;
+        document.head.appendChild(script);
+
+        await new Promise<void>((resolve, reject) => {
+          script.onload = () => resolve();
+          script.onerror = () => reject(new Error("Failed to load PDF.js"));
+        });
+
+        (window as Window & { pdfjsLib: { GlobalWorkerOptions: { workerSrc: string } } }).pdfjsLib.GlobalWorkerOptions.workerSrc =
+          "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js";
+      }
+
+      try {
+        const pdfjsLib = (window as Window & { pdfjsLib: typeof window.pdfjsLib }).pdfjsLib;
+        if (!pdfjsLib) throw new Error("PDF.js not loaded");
+
+        const pdf = await pdfjsLib.getDocument(url).promise;
+        const pages = pdf.numPages;
+        setNumPages(pages);
+
+        const container = containerRef.current;
+        if (!container) return;
+
+        container.innerHTML = "";
+
+        const availableWidth = container.clientWidth - 24;
+        const basePageWidth = Math.max(500, Math.min(availableWidth, 900));
+        const scale = 1.5;
+        const gap = 20;
+
+        for (let i = 1; i <= pages; i++) {
+          const page = await pdf.getPage(i);
+          const baseViewport = page.getViewport({ scale: 1 });
+          const viewport = page.getViewport({
+            scale: (basePageWidth / baseViewport.width) * scale,
+          });
+          const canvas = document.createElement("canvas");
+          const ctx = canvas.getContext("2d");
+          if (!ctx) continue;
+
+          canvas.width = viewport.width;
+          canvas.height = viewport.height;
+          canvas.style.width = `${basePageWidth}px`;
+          canvas.style.maxWidth = "100%";
+          canvas.style.height = "auto";
+          canvas.style.display = "block";
+          canvas.style.pointerEvents = "none";
+
+          const wrapper = document.createElement("div");
+          wrapper.style.cssText = `
+            margin-bottom: ${gap}px;
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: ${isLight ? "0 8px 32px rgba(0,0,0,0.08)" : "0 8px 32px rgba(0,0,0,0.35)"};
+            background: #fff;
+            position: relative;
+          `;
+          const canvasWrapper = document.createElement("div");
+          canvasWrapper.style.cssText = `
+            position: relative;
+            width: ${basePageWidth}px;
+            max-width: 100%;
+          `;
+          canvasWrapper.appendChild(canvas);
+
+          const textLayerDiv = document.createElement("div");
+          textLayerDiv.className = "pdf-text-layer";
+          const displayHeight = (viewport.height / viewport.width) * basePageWidth;
+          textLayerDiv.style.cssText = `
+            position: absolute;
+            left: 0;
+            top: 0;
+            width: ${basePageWidth}px;
+            height: ${displayHeight}px;
+            overflow: hidden;
+            line-height: 1;
+            -webkit-user-select: text;
+            user-select: text;
+            pointer-events: auto;
+            z-index: 1;
+          `;
+
+          try {
+            const textContent = await page.getTextContent();
+            const scaleX = basePageWidth / viewport.width;
+            const scaleY = basePageWidth / viewport.width;
+            (textContent as { items: { str: string; transform: number[] }[] }).items.forEach((item) => {
+              const span = document.createElement("span");
+              span.textContent = item.str;
+              const tx = item.transform;
+              const fontSize = Math.sqrt(tx[0] * tx[0] + tx[1] * tx[1]) * scaleX;
+              span.style.cssText = `
+                position: absolute;
+                left: ${tx[4] * scaleX}px;
+                top: ${(viewport.height - tx[5]) * scaleY}px;
+                font-size: ${fontSize}px;
+                white-space: pre;
+                color: transparent;
+                cursor: text;
+                -webkit-user-select: text;
+                user-select: text;
+              `;
+              textLayerDiv.appendChild(span);
+            });
+          } catch {
+            /* text layer optional */
+          }
+          canvasWrapper.appendChild(textLayerDiv);
+
+          const pageLabel = document.createElement("div");
+          pageLabel.textContent = `Page ${i} of ${pages}`;
+          pageLabel.style.cssText = `
+            position: absolute;
+            bottom: 8px;
+            right: 12px;
+            font-size: 11px;
+            color: rgba(0,0,0,0.4);
+            font-family: system-ui, sans-serif;
+            z-index: 2;
+          `;
+          wrapper.appendChild(canvasWrapper);
+          wrapper.appendChild(pageLabel);
+          container.appendChild(wrapper);
+
+          const renderTask = page.render({
+            canvasContext: ctx,
+            viewport,
+          });
+          await renderTask.promise;
+        }
+      } catch (err) {
+        setError(err instanceof Error ? err.message : "Failed to load PDF");
+      } finally {
+        setLoading(false);
       }
     };
-    updateWidth();
-    window.addEventListener("resize", updateWidth);
-    return () => window.removeEventListener("resize", updateWidth);
-  }, []);
 
-  const onLoadSuccess = ({ numPages: n }: { numPages: number }) => {
-    setNumPages(n);
-    setLoading(false);
-    setError(null);
-  };
-
-  const onLoadError = (err: Error) => {
-    setError(err?.message || "Failed to load PDF");
-    setLoading(false);
-  };
+    loadPdf();
+  }, [url, isLight]);
 
   if (error) {
     return (
@@ -54,12 +180,8 @@ export function PDFViewer({ url, isLight }: PDFViewerProps) {
     );
   }
 
-  const gap = 20;
-  const pageWidth = containerWidth;
-
   return (
     <div
-      data-pdf-container
       style={{
         position: "relative",
         display: "flex",
@@ -85,51 +207,16 @@ export function PDFViewer({ url, isLight }: PDFViewerProps) {
           Loading PDF...
         </div>
       )}
-      <Document
-        file={url}
-        onLoadSuccess={onLoadSuccess}
-        onLoadError={onLoadError}
-        loading={null}
-      >
-        {Array.from({ length: numPages }, (_, i) => (
-          <div
-            key={i}
-            style={{
-              marginBottom: gap,
-              borderRadius: 12,
-              overflow: "hidden",
-              boxShadow: isLight
-                ? "0 8px 32px rgba(0,0,0,0.08)"
-                : "0 8px 32px rgba(0,0,0,0.35)",
-              background: "#fff",
-              position: "relative",
-            }}
-          >
-            <div style={{ position: "relative" }}>
-              <Page
-                pageNumber={i + 1}
-                width={pageWidth}
-                renderTextLayer={true}
-                renderAnnotationLayer={true}
-              />
-              <div
-                style={{
-                  position: "absolute",
-                  bottom: 8,
-                  right: 12,
-                  fontSize: 11,
-                  color: "rgba(0,0,0,0.4)",
-                  fontFamily: "system-ui, sans-serif",
-                  zIndex: 2,
-                  pointerEvents: "none",
-                }}
-              >
-                Page {i + 1} of {numPages}
-              </div>
-            </div>
-          </div>
-        ))}
-      </Document>
+      <div
+        ref={containerRef}
+        style={{
+          display: "flex",
+          flexDirection: "column",
+          alignItems: "center",
+          width: "100%",
+          visibility: loading ? "hidden" : "visible",
+        }}
+      />
     </div>
   );
 }
