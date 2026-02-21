@@ -1,4 +1,4 @@
-import "./globals.css";
+import "./globals.scss";
 import { Inter } from "next/font/google";
 import { ThemeProvider } from "@/components/theme-provider";
 import Script from "next/script";
@@ -11,7 +11,7 @@ export const metadata = {
   description:
     "Hands-on AI help for businesses: fraud and abuse detection, interview integrity, security analytics, and internal copilots. Practical machine learning and LLM systems that actually ship.",
   icons: {
-    icon: "/favicon.ico",
+    icon: "/logo.png",
   },
   keywords: [
     "AI consulting",

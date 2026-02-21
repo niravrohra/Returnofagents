@@ -1,3 +1,6 @@
+@use '../styles/variables';
+@use '../styles/keyframe-animations';
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -136,6 +139,16 @@ body {
     --sidebar-border: 240 3.7% 15.9%;
     --sidebar-ring: 217.2 91.2% 59.8%;
   }
+}
+
+/* PDF viewer: ensure text selection works - canvas must not block text layer */
+.react-pdf__Page__canvas {
+  pointer-events: none !important;
+}
+.react-pdf__Page__textContent.textLayer,
+.react-pdf__Page__textContent.textLayer span {
+  user-select: text !important;
+  -webkit-user-select: text !important;
 }
 
 @layer base {
