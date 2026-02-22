@@ -1,30 +1,58 @@
 # Rursor - Return of Agents
 
-**Rursor** (Read Cursor) is an AI-powered research and document reader. Think Cursor, but for reading: select any text and get instant explanations, summaries, and follow-up answers from intelligent agents.
+**Rursor** is the AI-powered reading companion you've been waiting for. Think Cursor, but for reading: select any text and get instant, intelligent explanations. No more tab-switching, no more context loss. Research faster, understand deeper, learn better.
 
 Built for the **Afore Capital Hackathon**.
 
 ---
 
-## Features
+## Why Rursor?
 
-- **Dual research search** - Search with [Tavily](https://tavily.com) and [Seda](https://getseda.com) side-by-side
-- **Reader** - Save articles, PDFs, and research results to a reading list; edit titles and content
-- **Explain panel** - Select text to open an AI chatbot that explains in context, with follow-up Q&A
-- **Sophistication slider** - Adjust explanation depth (ELI5 to expert)
-- **Cartoon mode** - Generate visual explanations for AI responses via [Gemini](https://ai.google.dev)
-- **Voice** - Speech-to-text input and text-to-speech output ([ElevenLabs](https://elevenlabs.io))
-- **PDF support** - Upload PDFs; extract and read as Markdown
-- **Theme toggle** - Light and dark mode
+Research is messy. You juggle dozens of tabs, lose track of sources, and struggle to connect the dots. Rursor fixes that. One place to search, read, and understand anything. AI agents work alongside you so you can focus on what matters.
 
 ---
 
-## Tech Stack
+## What You Can Do
 
-- **Next.js 15** (App Router)
-- **React 18** + TypeScript
-- **APIs**: Tavily (search + extract), Seda (search), MiniMax (chat), ElevenLabs (TTS), Gemini (images)
-- **Storage**: `localStorage` (reader items, chat history)
+**Research in seconds**  
+Run dual search across the web and get results from two powerful engines at once. Compare sources side-by-side. Find what you need without the noise.
+
+**Build your reading list**  
+Save articles, PDFs, and research snippets with one click. Everything lives in your personal reader. Edit titles, clean up content, and organize your way.
+
+**Explain anything**  
+Select text and the AI explains it in context. Ask follow-up questions. Go from confused to confident without leaving the page. Adjust the sophistication slider from ELI5 to expert so explanations match your level.
+
+**Turn explanations into cartoons**  
+Generate visual summaries of any AI response. Complex ideas become simple illustrations. Perfect for presentations, study notes, or sharing with others.
+
+**Read with your ears**  
+Use your voice to ask questions and hear answers spoken aloud. Hands-free learning for commutes, workouts, or when your eyes need a break.
+
+**Upload PDFs**  
+Drop any PDF and Rursor extracts the content for easy reading and AI-powered explanation. No more copying and pasting.
+
+**Light or dark**  
+Switch themes to match your environment. Easy on the eyes, anytime.
+
+---
+
+## How to Use Rursor
+
+**1. Search**  
+Type your topic in the search bar. Rursor queries two search engines in parallel and shows results in two columns. Browse, compare, and pick what you need.
+
+**2. Add to Reader**  
+Click "Add to Reader" on any result (or upload a PDF). The item appears in your reading list. Open it to read in a clean, focused layout.
+
+**3. Select and explain**  
+Highlight any passage. The explain panel opens automatically. The AI explains your selection in context. Ask follow-up questions in the chat. Use the sophistication slider to tune how simple or technical the answers get.
+
+**4. Go further**  
+- Click "Explain as cartoon" on any AI response to generate a visual
+- Use the microphone to speak your questions
+- Use the speaker icon to hear answers read aloud
+- Edit article titles and content directly in the reader
 
 ---
 
@@ -43,16 +71,7 @@ npm install
 
 ### Environment variables
 
-Create `.env.local` with:
-
-| Variable | Required | Description |
-|----------|----------|-------------|
-| `TAVILY_API_KEY` | Yes (for search) | [Tavily](https://tavily.com) API key for web search and page extraction |
-| `SEDA_AUTH_TOKEN` | Yes (for Seda search) | [Seda](https://getseda.com) auth token for research search |
-| `MINIMAX_API_KEY` | Yes (for explain) | [MiniMax](https://api.minimax.chat) API key for chat/explanations |
-| `ELEVENLABS_API_KEY` | No (for TTS) | [ElevenLabs](https://elevenlabs.io) API key for text-to-speech |
-| `GEMINI_API_KEY` | No (for cartoons) | [Google AI](https://ai.google.dev) API key for cartoon generation |
-| `NUTRIENT_API_KEY` | No | Optional for nutrient extraction |
+Create `.env.local` with your API keys. Contact the team or check the project setup for required keys.
 
 ### Run
 
@@ -60,43 +79,7 @@ Create `.env.local` with:
 npm run dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000).
-
----
-
-## Project structure
-
-```
-app/
-├── page.tsx          # Main home: research search, sidebar, reader entry
-├── reader/
-│   └── page.tsx      # Reader: saved items, explain panel, voice, cartoons
-├── api/
-│   ├── tavily/       # Search + extract
-│   ├── seda/         # Search + chain
-│   ├── minimax/      # Chat/explanations
-│   ├── elevenlabs/   # TTS
-│   ├── gemini/       # Image generation (cartoons)
-│   └── nutrient/     # Extract (optional)
-lib/
-├── reader-storage.ts # Reader items, chat history (localStorage)
-└── voice.ts         # Speech recognition + TTS
-components/
-├── research-results.tsx  # Tavily/Seda results UI
-├── voice-waveform.tsx
-└── ...
-```
-
----
-
-## Scripts
-
-| Command | Description |
-|---------|-------------|
-| `npm run dev` | Start dev server (Next.js with Turbopack) |
-| `npm run build` | Production build |
-| `npm run start` | Start production server |
-| `npm run lint` | Run ESLint |
+Open [http://localhost:3000](http://localhost:3000) and start reading smarter.
 
 ---
 
