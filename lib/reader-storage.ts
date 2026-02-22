@@ -72,13 +72,13 @@ export function setChatHistory(itemId: string, messages: ChatMessage[]): void {
 }
 
 export function getChatCollapsed(itemId: string): boolean {
-  if (typeof window === "undefined") return true;
+  if (typeof window === "undefined") return false;
   try {
     const raw = localStorage.getItem(COLLAPSED_PREFIX + itemId);
-    if (raw === null) return true;
+    if (raw === null) return false;
     return JSON.parse(raw) === true;
   } catch {
-    return true;
+    return false;
   }
 }
 

@@ -142,6 +142,7 @@ export default function ReaderPage() {
     setChatMessages([]);
     setCartoonByIndex({});
     setCartoonErrorByIndex({});
+    setExplainPanelCollapsed(false);
   }, []);
 
   const clearSelection = useCallback(() => {

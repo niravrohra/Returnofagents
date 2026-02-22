@@ -7,36 +7,38 @@ import type { ReactNode } from "react";
 const fontClass = "font-sans";
 
 export const metadata = {
-  title: "AI Consulting for Businesses | Applied AI, Security & Automation | Nirav Rohra",
+  title: "Return of Agents | AI Research & Document Intelligence | Afore Capital Hackathon",
   description:
-    "Hands-on AI help for businesses: fraud and abuse detection, interview integrity, security analytics, and internal copilots. Practical machine learning and LLM systems that actually ship.",
+    "Return of Agents — AI-powered research and document reader built for Afore Capital Hackathon. Extract insights from web search, PDFs, and documents with intelligent agents. Explain, summarize, and explore content with conversational AI.",
   icons: {
     icon: "/logo.png",
   },
   keywords: [
-    "AI consulting",
-    "AI for business",
-    "machine learning engineer",
-    "LLM consulting",
-    "AI security",
-    "AI fraud detection",
-    "AI for startups",
-    "AI for enterprises",
-    "Nirav Rohra",
-    "Honrly",
+    "Afore Capital",
+    "Afore Capital hackathon",
+    "AI hackathon",
+    "Return of Agents",
+    "AI research assistant",
+    "AI document reader",
+    "intelligent document extraction",
+    "AI agents",
+    "web search AI",
+    "PDF AI extraction",
+    "conversational AI",
+    "research automation",
   ],
   openGraph: {
-    title: "AI Help for Your Business | Practical ML & LLM Systems",
+    title: "Return of Agents | AI Research & Document Intelligence | Afore Capital Hackathon",
     description:
-      "Applied AI, security, and automation for teams that care about reliability and real-world impact. From fraud detection to interview integrity and internal copilots.",
-    url: "https://honrly.com",
-    siteName: "Nirav Rohra",
+      "AI-powered research and document reader built for Afore Capital Hackathon. Extract insights, explain content, and explore documents with intelligent conversational agents.",
+    url: "https://returnofagents.com",
+    siteName: "Return of Agents",
     images: [
       {
-        url: "https://honrly.com/logo.png",
+        url: "https://returnofagents.com/logo.png",
         width: 512,
         height: 512,
-        alt: "Honrly logo - AI integrity platform",
+        alt: "Return of Agents - AI research and document intelligence for Afore Capital Hackathon",
       },
     ],
     locale: "en_US",
@@ -44,15 +46,19 @@ export const metadata = {
   },
   twitter: {
     card: "summary_large_image",
-    title: "AI Help for Your Business | Practical ML & LLM Systems",
+    title: "Return of Agents | AI Research & Document Intelligence | Afore Capital Hackathon",
     description:
-      "Hands-on AI, security, and automation for teams shipping real products. Less slide decks, more systems.",
-    images: ["https://honrly.com/logo.png"],
+      "AI-powered research and document reader built for Afore Capital Hackathon. Extract insights with intelligent AI agents.",
+    images: ["https://returnofagents.com/logo.png"],
   },
   robots: {
     index: true,
     follow: true,
   },
+  alternates: {
+    canonical: "https://returnofagents.com",
+  },
+  metadataBase: new URL("https://returnofagents.com"),
 };
 
 export default function RootLayout({ children }: { children: ReactNode }) {
@@ -63,41 +69,35 @@ export default function RootLayout({ children }: { children: ReactNode }) {
           {children}
         </ThemeProvider>
 
-        {/* JSON-LD for SEO */}
-        <Script id="ld-json-person" type="application/ld+json">
+        {/* JSON-LD for SEO - WebApplication + Organization */}
+        <Script id="ld-json-app" type="application/ld+json">
           {JSON.stringify({
             "@context": "https://schema.org",
-            "@type": "Person",
-            name: "Nirav Rohra",
+            "@type": "WebApplication",
+            name: "Return of Agents",
             description:
-              "Engineer working on applied AI, security, and interview integrity systems for businesses and startups.",
-            url: "https://honrly.com",
-            sameAs: [
-              "https://github.com/niravrohra",
-              "https://www.linkedin.com/in/nirav-rohra",
-              "https://honrly.com",
-              "https://aplcard.com",
-              "https://ziqara.com",
+              "AI-powered research and document intelligence platform. Extract insights from web search, PDFs, and documents with intelligent conversational agents. Built for Afore Capital Hackathon.",
+            url: "https://returnofagents.com",
+            applicationCategory: "UtilitiesApplication",
+            operatingSystem: "Any",
+            offers: {
+              "@type": "Offer",
+              price: "0",
+              priceCurrency: "USD",
+            },
+            featureList: [
+              "AI-powered web research with Tavily and Seda",
+              "PDF document extraction and analysis",
+              "Conversational explain panel for selected text",
+              "Voice input and text-to-speech",
             ],
-            knowsAbout: [
-              "Artificial Intelligence",
-              "Machine Learning",
-              "Cybersecurity",
-              "Fraud detection",
-              "Interview integrity",
-              "LLM applications",
-              "Business process automation",
-            ],
-            worksFor: [
-              {
-                "@type": "Organization",
-                name: "Honrly",
-                url: "https://honrly.com",
-              },
-            ],
+            creator: {
+              "@type": "Organization",
+              name: "Afore Capital",
+              url: "https://afore.capital",
+            },
           })}
         </Script>
-
         {/* LinkedIn badge - loads when browser idle to avoid blocking */}
         <Script
           src="https://platform.linkedin.com/badges/js/profile.js"
