@@ -1,10 +1,10 @@
 import "./globals.scss";
-import { Inter } from "next/font/google";
 import { ThemeProvider } from "@/components/theme-provider";
 import Script from "next/script";
 import type { ReactNode } from "react";
 
-const inter = Inter({ subsets: ["latin"] });
+// Use system fonts for fast load - avoids blocking Google Fonts fetch
+const fontClass = "font-sans";
 
 export const metadata = {
   title: "AI Consulting for Businesses | Applied AI, Security & Automation | Nirav Rohra",
@@ -58,7 +58,7 @@ export const metadata = {
 export default function RootLayout({ children }: { children: ReactNode }) {
   return (
     <html lang="en" suppressHydrationWarning>
-      <body className={inter.className}>
+      <body className={fontClass}>
         <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
           {children}
         </ThemeProvider>
@@ -98,12 +98,10 @@ export default function RootLayout({ children }: { children: ReactNode }) {
           })}
         </Script>
 
-        {/* LinkedIn badge script */}
+        {/* LinkedIn badge - loads when browser idle to avoid blocking */}
         <Script
           src="https://platform.linkedin.com/badges/js/profile.js"
-          strategy="afterInteractive"
-          async
-          defer
+          strategy="lazyOnload"
         />
       </body>
     </html>

@@ -1,10 +1,19 @@
 "use client";
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
+import dynamic from "next/dynamic";
 import { useRouter } from "next/navigation";
 import { useTheme } from "next-themes";
 import { ThemeToggle } from "@/components/theme-toggle";
+import { addReaderItem } from "@/lib/reader-storage";
+import { useSpeechRecognition } from "@/lib/voice";
+import { VoiceWaveform } from "@/components/voice-waveform";
+import type { ResearchResult } from "@/components/research-results";
 
-const PDF_VIEWER_KEY = "pdfViewerUrl";
+const ResearchResults = dynamic(
+  () => import("@/components/research-results").then((m) => ({ default: m.ResearchResults })),
+  { ssr: false }
+);
+
 
 const NeelIcon = ({ children, size = 18 }: { children: React.ReactNode; size?: number }) => (
   <span style={{ width: size, height: size, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
@@ -19,10 +28,24 @@ const NewChatIcon = () => (
   </svg>
 );
 
+const BookIcon = () => (
+  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20" />
+    <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z" />
+  </svg>
+);
+
 const SearchIcon = () => (
   <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
     <circle cx="11" cy="11" r="8" />
     <path d="m21 21-4.35-4.35" />
+  </svg>
+);
+
+const SendIcon = () => (
+  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <line x1="22" y1="2" x2="11" y2="13" />
+    <polygon points="22 2 15 22 11 13 2 9 22 2" />
   </svg>
 );
 
@@ -302,6 +325,83 @@ const ChatPreview = ({ title, isActive, itemStyle, activeColor, onClick }: ChatP
   );
 };
 
+function normalizeTavilyResults(data: unknown): ResearchResult[] {
+  if (!data || typeof data !== "object") return [];
+  const obj = data as Record<string, unknown>;
+  const results = (obj.results ?? obj.result ?? []) as Array<Record<string, unknown>>;
+  if (!Array.isArray(results)) return [];
+  return results.map((r, i) => ({
+    id: `tavily-${i}-${Date.now()}`,
+    title: String(r.title ?? r.name ?? "Untitled"),
+    content: String(r.content ?? r.snippet ?? ""),
+    url: typeof r.url === "string" ? r.url : undefined,
+    source: "tavily" as const,
+  }));
+}
+
+type SedaSearchResult = {
+  _id: string;
+  query?: { original?: string; refined?: string; contextual?: string | null };
+  markdown?: { summary?: string; engaging?: string };
+  result?: {
+    data?: {
+      title?: string;
+      answer?: string;
+      discoveries?: { discovery: string; hook?: string; emoji?: string; index?: number }[];
+      nextQuestions?: string[];
+    };
+    citations?: { url: string; description?: string }[];
+  };
+  chains?: { chainId: string; chainName?: string }[];
+};
+
+type SedaSearchResponse = {
+  success?: boolean;
+  results?: SedaSearchResult[];
+};
+
+function formatSedaContentForReader(r: SedaSearchResult): string {
+  const parts: string[] = [];
+  const answer = r.result?.data?.answer;
+  const summary = r.markdown?.summary;
+  const discoveries = r.result?.data?.discoveries;
+  const nextQuestions = r.result?.data?.nextQuestions;
+  const citations = r.result?.citations;
+
+  if (answer) parts.push(answer);
+  if (summary && summary !== answer) parts.push(summary);
+  if (discoveries?.length) {
+    parts.push("\n\nDiscoveries:\n" + discoveries.map((d) => `${d.emoji ?? "•"} ${d.discovery}${d.hook ? ` – ${d.hook}` : ""}`).join("\n"));
+  }
+  if (nextQuestions?.length) {
+    parts.push("\n\nFollow-up questions:\n" + nextQuestions.map((q) => `• ${q}`).join("\n"));
+  }
+  if (citations?.length) {
+    parts.push("\n\nCitations:\n" + citations.map((c) => (c.description?.trim() ? c.description : c.url)).join("\n"));
+  }
+  return parts.join("\n\n").trim() || "No content available.";
+}
+
+function normalizeSedaResults(data: unknown): ResearchResult[] {
+  if (!data || typeof data !== "object") return [];
+  const obj = data as Record<string, unknown>;
+  const items = (obj.results ?? obj.data ?? obj.items ?? []) as SedaSearchResult[];
+  if (!Array.isArray(items)) return [];
+  return items.slice(0, 20).map((r, i) => {
+    const title = r.result?.data?.title || r.query?.original || r.query?.refined || `Result ${i + 1}`;
+    const fullContent = formatSedaContentForReader(r);
+    const firstCitation = r.result?.citations?.[0]?.url;
+
+    return {
+      id: r._id || `seda-${i}-${Date.now()}`,
+      title,
+      content: fullContent,
+      url: firstCitation,
+      source: "seda" as const,
+    };
+  });
+}
+
 export default function Neel() {
   const [inputValue, setInputValue] = useState("");
   const [sidebarOpen, setSidebarOpen] = useState(true);
@@ -309,10 +409,73 @@ export default function Neel() {
   const [activeChatId, setActiveChatId] = useState<string | null>(null);
   const [uploadedFiles, setUploadedFiles] = useState<File[]>([]);
   const [fileBlobUrls, setFileBlobUrls] = useState<string[]>([]);
+  const [researchLoading, setResearchLoading] = useState(false);
+  const [researchQuery, setResearchQuery] = useState<string | null>(null);
+  const [tavilyResults, setTavilyResults] = useState<ResearchResult[]>([]);
+  const [sedaResults, setSedaResults] = useState<ResearchResult[]>([]);
+  const [lastRawResponses, setLastRawResponses] = useState<{ tavily?: unknown; seda?: unknown }>({});
+  const [pdfExtracting, setPdfExtracting] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const router = useRouter();
+  const { start: startVoice, stop: stopVoice, isListening: voiceListening, error: voiceError } = useSpeechRecognition();
+
+  const handleVoiceInput = useCallback(() => {
+    if (voiceListening) {
+      stopVoice();
+      return;
+    }
+    startVoice((text) => {
+      setInputValue(text);
+      inputRef.current?.focus();
+    });
+  }, [voiceListening, startVoice, stopVoice]);
   const { resolvedTheme } = useTheme();
+
+  const handleResearchSearch = async (query: string) => {
+    const q = query.trim();
+    if (!q) return;
+    setResearchLoading(true);
+    setResearchQuery(q);
+    setTavilyResults([]);
+    setSedaResults([]);
+
+    let tavilyJson: unknown = null;
+    let sedaJson: unknown = null;
+
+    const processTavily = fetch("/api/tavily/search", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ query: q, max_results: 10 }),
+    })
+      .then(async (res) => {
+        const data = res.ok ? await res.json() : null;
+        tavilyJson = data;
+        setTavilyResults(data ? normalizeTavilyResults(data) : []);
+      })
+      .catch((err) => {
+        console.error("Tavily search error:", err);
+      });
+
+    const processSeda = fetch(`/api/seda/search?q=${encodeURIComponent(q)}&limit=10`)
+      .then(async (res) => {
+        const data = res.ok ? await res.json() : null;
+        sedaJson = data;
+        setSedaResults(data ? normalizeSedaResults(data) : []);
+      })
+      .catch((err) => {
+        console.error("Seda search error:", err);
+      });
+
+    try {
+      await Promise.allSettled([processTavily, processSeda]);
+      setLastRawResponses({ tavily: tavilyJson, seda: sedaJson });
+    } catch (err) {
+      console.error("Research search error:", err);
+    } finally {
+      setResearchLoading(false);
+    }
+  };
 
   const handleNewChat = () => {
     const id = `chat-${Date.now()}`;
@@ -320,22 +483,39 @@ export default function Neel() {
     setActiveChatId(id);
   };
 
-  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
-    if (files) {
-      const fileArray = Array.from(files);
-      const pdfIndex = fileArray.findIndex((f) => f.type === "application/pdf");
-      if (pdfIndex !== -1) {
-        const pdfFile = fileArray[pdfIndex];
-        const pdfUrl = URL.createObjectURL(pdfFile);
-        sessionStorage.setItem(PDF_VIEWER_KEY, pdfUrl);
-        sessionStorage.setItem("pdfViewerFileName", pdfFile.name);
-        router.push("/editor");
-      } else {
-        const urls = fileArray.map((f) => URL.createObjectURL(f));
-        setUploadedFiles((prev) => [...prev, ...fileArray]);
-        setFileBlobUrls((prev) => [...prev, ...urls]);
+    if (!files) return;
+    const fileArray = Array.from(files);
+    const pdfIndex = fileArray.findIndex((f) => f.type === "application/pdf");
+    if (pdfIndex !== -1) {
+      const pdfFile = fileArray[pdfIndex];
+      setPdfExtracting(true);
+      try {
+        const formData = new FormData();
+        formData.append("file", pdfFile);
+        const res = await fetch("/api/nutrient/extract", {
+          method: "POST",
+          body: formData,
+        });
+        const data = await res.json();
+        if (res.ok && data.title && data.content) {
+          addReaderItem({
+            title: data.title,
+            content: data.content,
+            source: "pdf",
+          });
+          router.push("/reader");
+        } else {
+          console.error("PDF extraction failed:", data?.error || data);
+        }
+      } finally {
+        setPdfExtracting(false);
       }
+    } else {
+      const urls = fileArray.map((f) => URL.createObjectURL(f));
+      setUploadedFiles((prev) => [...prev, ...fileArray]);
+      setFileBlobUrls((prev) => [...prev, ...urls]);
     }
     e.target.value = "";
   };
@@ -463,6 +643,12 @@ export default function Neel() {
               onClick={handleNewChat}
             />
             <NavItem icon={<SearchIcon />} label="Search chats" itemStyle={themeStyles.navItem} />
+            <NavItem
+              icon={<BookIcon />}
+              label="Reader"
+              itemStyle={themeStyles.navItem}
+              onClick={() => router.push("/reader")}
+            />
 
             {/* Chat previews */}
             {chats.length > 0 && (
@@ -515,7 +701,36 @@ export default function Neel() {
           <ThemeToggle />
         </div>
 
-        {/* Center - text + input dead center */}
+        {/* Center - research results or greeting + input */}
+        <div
+          style={{
+            flex: 1,
+            display: "flex",
+            flexDirection: "column",
+            minHeight: 0,
+            padding: "0 16px",
+          }}
+        >
+          {/* Research results view */}
+          {researchQuery !== null && (
+            <ResearchResults
+              tavilyResults={tavilyResults}
+              sedaResults={sedaResults}
+              query={researchQuery}
+              isLight={isLight}
+              isLoading={researchLoading}
+              rawResponses={lastRawResponses}
+              onBack={() => {
+                setResearchQuery(null);
+                setTavilyResults([]);
+                setSedaResults([]);
+                setLastRawResponses({});
+              }}
+            />
+          )}
+
+          {/* Default center - greeting and input (when no research results) */}
+          {researchQuery === null && (
         <div
           style={{
             flex: 1,
@@ -524,7 +739,6 @@ export default function Neel() {
             alignItems: "center",
             justifyContent: "center",
             gap: 24,
-            padding: "0 16px",
           }}
         >
           {/* Only show greeting when no files uploaded */}
@@ -535,6 +749,7 @@ export default function Neel() {
               <div style={{ display: "flex", gap: 12 }}>
                 <button
                   type="button"
+                  disabled={pdfExtracting}
                   onClick={() => fileInputRef.current?.click()}
                   style={{
                     padding: "12px 24px",
@@ -544,18 +759,18 @@ export default function Neel() {
                     color: isLight ? "#1a1a1a" : "#ececec",
                     fontSize: 15,
                     fontWeight: 500,
-                    cursor: "pointer",
+                    cursor: pdfExtracting ? "wait" : "pointer",
                     fontFamily: "inherit",
                     transition: "background 0.15s",
                   }}
                   onMouseEnter={(e) => {
-                    e.currentTarget.style.background = isLight ? "rgba(0,0,0,0.08)" : "rgba(255,255,255,0.12)";
+                    if (!pdfExtracting) e.currentTarget.style.background = isLight ? "rgba(0,0,0,0.08)" : "rgba(255,255,255,0.12)";
                   }}
                   onMouseLeave={(e) => {
                     e.currentTarget.style.background = isLight ? "rgba(0,0,0,0.04)" : "rgba(255,255,255,0.08)";
                   }}
                 >
-                  Upload
+                  {pdfExtracting ? "Extracting PDF…" : "Upload"}
                 </button>
               </div>
             </>
@@ -629,15 +844,55 @@ export default function Neel() {
             <input
               ref={inputRef}
               style={themeStyles.inputField}
-              placeholder="Ask anything"
+              placeholder="Search the web (Tavily + Seda)..."
               value={inputValue}
               onChange={(e) => setInputValue(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  e.preventDefault();
+                  handleResearchSearch(inputValue);
+                }
+              }}
+              disabled={researchLoading}
             />
-            <button style={styles.inputBtn}>
-              <MicIcon />
+            <button
+              type="button"
+              style={styles.inputBtn}
+              onClick={() => handleResearchSearch(inputValue)}
+              disabled={researchLoading}
+              title="Search"
+            >
+              {researchLoading ? (
+                <span style={{ fontSize: 14 }}>⋯</span>
+              ) : (
+                <SendIcon />
+              )}
+            </button>
+            <button
+              type="button"
+              style={{
+                ...styles.inputBtn,
+                ...(voiceListening ? { color: isLight ? "#dc2626" : "#f87171", background: isLight ? "rgba(220,38,38,0.1)" : "rgba(248,113,113,0.15)" } : {}),
+              }}
+              onClick={handleVoiceInput}
+              disabled={researchLoading}
+              title={voiceListening ? "Click to stop and add your speech" : "Click to speak, then click again when done"}
+            >
+              {voiceListening ? (
+                <VoiceWaveform size={20} color={isLight ? "#dc2626" : "#f87171"} />
+              ) : (
+                <MicIcon />
+              )}
             </button>
           </div>
+          {voiceError && (
+            <div style={{ fontSize: 12, color: "#dc2626", marginTop: 6, textAlign: "center" }}>
+              Voice: {voiceError === "not-allowed" ? "Microphone blocked. Allow mic in browser settings." : voiceError}
+            </div>
+          )}
           </div>
+        </div>
+          )}
         </div>
       </div>
     </div>

@@ -1,12 +1,15 @@
 "use client"
 
 import { useState } from "react"
+import { useTheme } from "next-themes"
 import { Button } from "@/components/ui/button"
+import { ThinkingText } from "@/components/thinking-text"
 import { Input } from "@/components/ui/input"
 import { Card, CardContent } from "@/components/ui/card"
 import { Sparkles } from "lucide-react"
 
 export default function ChatAI() {
+  const { resolvedTheme } = useTheme()
   const [prompt, setPrompt] = useState("")
   const [response, setResponse] = useState("")
   const [loading, setLoading] = useState(false)
@@ -55,7 +58,7 @@ export default function ChatAI() {
             className="flex-grow"
           />
           <Button onClick={handleSubmit} disabled={loading}>
-            {loading ? "Thinking..." : "Ask"}
+            {loading ? <ThinkingText isLight={resolvedTheme === "light"} /> : "Ask"}
           </Button>
         </div>
         {response && (

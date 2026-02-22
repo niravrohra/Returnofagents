@@ -7,10 +7,16 @@ type PDFViewerProps = {
   isLight: boolean;
 };
 
+interface PDFPageProxy {
+  getViewport: (params: { scale: number }) => { width: number; height: number };
+  getTextContent: () => Promise<{ items: { str: string; transform: number[] }[] }>;
+  render: (params: { canvasContext: CanvasRenderingContext2D; viewport: { width: number; height: number } }) => { promise: Promise<void> };
+}
+
 declare global {
   interface Window {
     pdfjsLib?: {
-      getDocument: (src: string) => { promise: Promise<{ numPages: number; getPage: (n: number) => Promise<unknown> }> };
+      getDocument: (src: string) => { promise: Promise<{ numPages: number; getPage: (n: number) => Promise<PDFPageProxy> }> };
       GlobalWorkerOptions: { workerSrc: string };
     };
   }
@@ -118,7 +124,7 @@ export function PDFViewer({ url, isLight }: PDFViewerProps) {
             const textContent = await page.getTextContent();
             const scaleX = basePageWidth / viewport.width;
             const scaleY = basePageWidth / viewport.width;
-            (textContent as { items: { str: string; transform: number[] }[] }).items.forEach((item) => {
+            textContent.items.forEach((item) => {
               const span = document.createElement("span");
               span.textContent = item.str;
               const tx = item.transform;
