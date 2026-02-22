@@ -10,6 +10,7 @@ import { getReaderItems, removeReaderItem, updateReaderItem, getChatHistory, set
 import { useSpeechRecognition, speakText, stopSpeaking } from "@/lib/voice";
 import { VoiceWaveform } from "@/components/voice-waveform";
 import { ThinkingText } from "@/components/thinking-text";
+import { useIsMobile } from "@/hooks/use-mobile";
 
 const WIKI_NAV_PATTERNS = [
   /^Jump to content\s*\n?/im,
@@ -64,6 +65,8 @@ function cleanExtractedContent(content: string): string {
 }
 
 export default function ReaderPage() {
+  const isMobile = useIsMobile();
+  const [listOpen, setListOpen] = useState(false);
   const [items, setItems] = useState<ReaderItem[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [selectionText, setSelectionText] = useState<string | null>(null);
@@ -326,56 +329,147 @@ export default function ReaderPage() {
           display: "flex",
           alignItems: "center",
           justifyContent: "space-between",
-          padding: "14px 24px",
+          padding: isMobile ? "12px 16px" : "14px 24px",
+          paddingTop: isMobile ? "max(12px, env(safe-area-inset-top))" : 14,
           background: isLight ? "#ffffff" : "#171717",
           borderBottom: `1px solid ${border}`,
         }}
       >
-        <button
-          type="button"
-          onClick={() => router.push("/")}
-          style={{
-            display: "flex",
-            alignItems: "center",
-            gap: 8,
-            padding: "6px 12px",
-            borderRadius: 8,
-            border: "none",
-            background: isLight ? "rgba(0,0,0,0.06)" : "rgba(255,255,255,0.08)",
-            color: text,
-            fontSize: 12,
-            fontWeight: 500,
-            cursor: "pointer",
-            fontFamily: "inherit",
-          }}
-        >
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-            <path d="M19 12H5M12 19l-7-7 7-7" />
-          </svg>
-          Back
-        </button>
-        <span style={{ fontSize: 15, fontWeight: 600, color: text }}>Reader</span>
-        <div style={{ width: 80 }} />
+        <div style={{ display: "flex", alignItems: "center", gap: isMobile ? 8 : 12 }}>
+          <button
+            type="button"
+            onClick={() => router.push("/")}
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 8,
+              padding: isMobile ? "8px 10px" : "6px 12px",
+              minWidth: isMobile ? 44 : undefined,
+              minHeight: isMobile ? 44 : undefined,
+              borderRadius: 8,
+              border: "none",
+              background: isLight ? "rgba(0,0,0,0.06)" : "rgba(255,255,255,0.08)",
+              color: text,
+              fontSize: 12,
+              fontWeight: 500,
+              cursor: "pointer",
+              fontFamily: "inherit",
+            }}
+          >
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <path d="M19 12H5M12 19l-7-7 7-7" />
+            </svg>
+            Back
+          </button>
+          {isMobile && hasContent && (
+            <button
+              type="button"
+              onClick={() => setListOpen(true)}
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: 6,
+                padding: "8px 12px",
+                minHeight: 44,
+                borderRadius: 8,
+                border: "none",
+                background: isLight ? "rgba(0,0,0,0.06)" : "rgba(255,255,255,0.08)",
+                color: text,
+                fontSize: 13,
+                fontWeight: 500,
+                cursor: "pointer",
+                fontFamily: "inherit",
+              }}
+            >
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20" />
+                <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z" />
+              </svg>
+              Saved ({items.length})
+            </button>
+          )}
+        </div>
+        <span style={{ fontSize: isMobile ? 14 : 15, fontWeight: 600, color: text }}>Reader</span>
+        <div style={{ width: isMobile ? 60 : 80 }} />
       </header>
+
+      {/* Mobile list backdrop */}
+      {isMobile && listOpen && (
+        <div
+          role="button"
+          tabIndex={0}
+          aria-label="Close list"
+          style={{
+            position: "fixed",
+            inset: 0,
+            background: "rgba(0,0,0,0.5)",
+            zIndex: 40,
+            animation: "fadeIn 0.2s ease",
+          }}
+          onClick={() => setListOpen(false)}
+          onKeyDown={(e) => e.key === "Escape" && setListOpen(false)}
+        />
+      )}
 
       {/* Split: List left | Content right */}
       <div style={{ flex: 1, display: "flex", minHeight: 0 }}>
         {/* Left: Reading list */}
         <div
           style={{
-            width: 280,
-            minWidth: 280,
-            flexShrink: 0,
-            display: "flex",
+            ...(isMobile
+              ? {
+                  position: "fixed",
+                  top: 0,
+                  left: 0,
+                  bottom: 0,
+                  zIndex: 50,
+                  width: listOpen ? "min(320px, 85vw)" : 0,
+                  minWidth: listOpen ? 280 : 0,
+                  overflow: "hidden",
+                  transition: "width 0.2s ease",
+                  boxShadow: listOpen ? "4px 0 24px rgba(0,0,0,0.3)" : "none",
+                  paddingTop: "env(safe-area-inset-top)",
+                }
+              : {
+                  width: 280,
+                  minWidth: 280,
+                  flexShrink: 0,
+                }),
+            display: isMobile && !listOpen ? "none" : "flex",
             flexDirection: "column",
-            borderRight: `1px solid ${border}`,
+            borderRight: isMobile ? "none" : `1px solid ${border}`,
             background: isLight ? "#f9fafb" : "#1f1f1f",
           }}
         >
-          <div style={{ padding: "16px 12px", borderBottom: `1px solid ${border}` }}>
+          <div style={{
+            padding: "16px 12px",
+            borderBottom: `1px solid ${border}`,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+          }}>
             <span style={{ fontSize: 13, fontWeight: 600, color: textMuted, textTransform: "uppercase", letterSpacing: "0.05em" }}>
               Saved items
             </span>
+            {isMobile && (
+              <button
+                type="button"
+                onClick={() => setListOpen(false)}
+                style={{
+                  padding: 8,
+                  borderRadius: 8,
+                  border: "none",
+                  background: "transparent",
+                  color: textMuted,
+                  cursor: "pointer",
+                  fontSize: 18,
+                  lineHeight: 1,
+                }}
+                aria-label="Close"
+              >
+                ×
+              </button>
+            )}
           </div>
           <div style={{ flex: 1, overflowY: "auto", padding: 8 }}>
             {items.map((item) => (
@@ -385,7 +479,7 @@ export default function ReaderPage() {
                   display: "flex",
                   alignItems: "center",
                   gap: 8,
-                  padding: "12px 14px",
+                  padding: isMobile ? "14px 16px" : "12px 14px",
                   borderRadius: 10,
                   marginBottom: 6,
                   cursor: "pointer",
@@ -395,7 +489,10 @@ export default function ReaderPage() {
               >
                 <div
                   style={{ flex: 1, minWidth: 0 }}
-                  onClick={() => setSelectedId(item.id)}
+                  onClick={() => {
+                    setSelectedId(item.id);
+                    if (isMobile) setListOpen(false);
+                  }}
                 >
                   <div style={{ fontSize: 14, fontWeight: 500, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                     {item.title}
@@ -437,6 +534,7 @@ export default function ReaderPage() {
             flex: 1,
             minWidth: 0,
             display: "flex",
+            flexDirection: isMobile && selectedItem && !explainPanelCollapsed ? "column" : "row",
             overflow: "hidden",
           }}
         >
@@ -454,7 +552,7 @@ export default function ReaderPage() {
               style={{
                 flex: 1,
                 overflow: "auto",
-                padding: "40px 48px 60px",
+                padding: isMobile ? "20px 16px max(24px, env(safe-area-inset-bottom))" : "40px 48px 60px",
                 display: "flex",
                 justifyContent: "center",
               }}
@@ -465,14 +563,14 @@ export default function ReaderPage() {
                   width: "100%",
                 }}
               >
-                <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 16, marginBottom: 12 }}>
+                <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: isMobile ? 12 : 16, marginBottom: 12 }}>
                   <h1
                     ref={titleRef}
                     contentEditable={isEditing}
                     suppressContentEditableWarning
                     style={{
                       flex: 1,
-                      fontSize: 28,
+                      fontSize: isMobile ? 22 : 28,
                       fontWeight: 700,
                       color: text,
                       marginBottom: 0,
@@ -586,34 +684,47 @@ export default function ReaderPage() {
             explainPanelCollapsed ? (
               <div
                 style={{
-                  width: 40,
-                  minWidth: 40,
+                  width: isMobile ? "100%" : 40,
+                  minWidth: isMobile ? 0 : 40,
                   flexShrink: 0,
                   display: "flex",
-                  flexDirection: "column",
+                  flexDirection: isMobile ? "row" : "column",
                   alignItems: "center",
                   justifyContent: "center",
-                  borderLeft: `1px solid ${border}`,
+                  borderLeft: isMobile ? "none" : `1px solid ${border}`,
+                  borderTop: isMobile ? `1px solid ${border}` : "none",
+                  padding: isMobile ? "12px" : 0,
                   background: isLight ? "#fafafa" : "#1f1f1f",
                   cursor: "pointer",
                 }}
                 onClick={() => setExplainPanelCollapsed(false)}
                 title="Expand explanation"
               >
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ transform: "rotate(-90deg)", color: textMuted }}>
-                  <path d="M19 12H5M12 19l-7-7 7-7" />
-                </svg>
+                {isMobile ? (
+                  <>
+                    <span style={{ fontSize: 14, fontWeight: 600, color: textMuted, marginRight: 8 }}>Explain selected text</span>
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ transform: "rotate(-90deg)", color: textMuted, flexShrink: 0 }}>
+                      <path d="M19 12H5M12 19l-7-7 7-7" />
+                    </svg>
+                  </>
+                ) : (
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ transform: "rotate(-90deg)", color: textMuted }}>
+                    <path d="M19 12H5M12 19l-7-7 7-7" />
+                  </svg>
+                )}
               </div>
             ) : (
             <div
               style={{
-                width: 360,
-                minWidth: 360,
+                width: isMobile ? "100%" : 360,
+                minWidth: isMobile ? 0 : 360,
                 flexShrink: 0,
                 display: "flex",
                 flexDirection: "column",
-                borderLeft: `1px solid ${border}`,
+                borderLeft: isMobile ? "none" : `1px solid ${border}`,
+                borderTop: isMobile ? `1px solid ${border}` : "none",
                 background: isLight ? "#fafafa" : "#1f1f1f",
+                minHeight: isMobile ? 280 : undefined,
               }}
             >
               <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "12px 16px", borderBottom: `1px solid ${border}` }}>
@@ -764,7 +875,14 @@ export default function ReaderPage() {
                   {voiceError === "not-allowed" ? "Microphone blocked. Allow mic in browser settings." : voiceError}
                 </div>
               )}
-              <div style={{ padding: 12, borderTop: `1px solid ${border}`, display: "flex", gap: 8, alignItems: "center" }}>
+              <div style={{
+                padding: 12,
+                paddingBottom: isMobile ? "max(12px, env(safe-area-inset-bottom))" : 12,
+                borderTop: `1px solid ${border}`,
+                display: "flex",
+                gap: 8,
+                alignItems: "center",
+              }}>
                 <input
                   type="text"
                   value={chatInput}

@@ -9,10 +9,20 @@
 
 html {
   scroll-behavior: smooth;
+  -webkit-text-size-adjust: 100%;
 }
 
 body {
   transition: background-color 0.3s ease, color 0.3s ease;
+  /* Mobile: reduce tap highlight, improve touch */
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* Touch-friendly: ensure buttons/links have min tap target on mobile */
+@media (max-width: 767px) {
+  button, [role="button"], a {
+    touch-action: manipulation;
+  }
 }
 
 /* Custom spotlight effect enhancement */

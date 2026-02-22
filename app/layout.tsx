@@ -2,9 +2,17 @@ import "./globals.scss";
 import { ThemeProvider } from "@/components/theme-provider";
 import Script from "next/script";
 import type { ReactNode } from "react";
+import type { Viewport } from "next";
 
 // Use system fonts for fast load - avoids blocking Google Fonts fetch
 const fontClass = "font-sans";
+
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  maximumScale: 5,
+  viewportFit: "cover",
+};
 
 export const metadata = {
   title: "Return of Agents | AI Research & Document Intelligence | Afore Capital Hackathon",

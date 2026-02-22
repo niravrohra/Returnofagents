@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { addReaderItem } from "@/lib/reader-storage";
+import { useIsMobile } from "@/hooks/use-mobile";
 
 function LoadingPulse({ isLight }: { isLight: boolean }) {
   const color = isLight ? "rgba(0,0,0,0.2)" : "rgba(255,255,255,0.25)";
@@ -111,9 +112,11 @@ const ExternalIcon = () => (
 function ResultCard({
   result,
   isLight,
+  isMobile,
 }: {
   result: ResearchResult;
   isLight: boolean;
+  isMobile?: boolean;
 }) {
   const [added, setAdded] = useState(false);
   const [hovered, setHovered] = useState(false);
@@ -254,8 +257,8 @@ function ResultCard({
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
-              width: 36,
-              height: 36,
+              width: isMobile ? 44 : 36,
+              height: isMobile ? 44 : 36,
               borderRadius: 10,
               border: "none",
               background: added ? (isLight ? "rgba(34,197,94,0.2)" : "rgba(34,197,94,0.25)") : (isLight ? "rgba(0,0,0,0.06)" : "rgba(255,255,255,0.08)"),
@@ -281,6 +284,7 @@ function ResultCard({
 
 export function ResearchResults({ tavilyResults, sedaResults, query, isLight, isLoading = false, onBack, rawResponses }: ResearchResultsProps) {
   const router = useRouter();
+  const isMobile = useIsMobile();
   const text = isLight ? "#1a1a1a" : "#ececec";
   const textMuted = isLight ? "#6b7280" : "#9ca3af";
   const border = isLight ? "rgba(0,0,0,0.08)" : "rgba(255,255,255,0.08)";
@@ -298,7 +302,7 @@ export function ResearchResults({ tavilyResults, sedaResults, query, isLight, is
         display: "flex",
         flexDirection: "column",
         minHeight: 0,
-        padding: "0 24px",
+        padding: isMobile ? "0 12px" : "0 24px",
       }}
     >
       {/* Header */}
@@ -306,19 +310,22 @@ export function ResearchResults({ tavilyResults, sedaResults, query, isLight, is
         style={{
           flexShrink: 0,
           display: "flex",
-          alignItems: "center",
+          flexDirection: isMobile ? "column" : "row",
+          alignItems: isMobile ? "stretch" : "center",
           justifyContent: "space-between",
-          padding: "16px 0",
+          gap: isMobile ? 12 : 0,
+          padding: isMobile ? "12px 0" : "16px 0",
           borderBottom: `1px solid ${border}`,
         }}
       >
-        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
           {onBack && (
             <button
               type="button"
               onClick={onBack}
               style={{
-                padding: "6px 12px",
+                padding: isMobile ? "10px 14px" : "6px 12px",
+                minHeight: isMobile ? 44 : undefined,
                 borderRadius: 8,
                 border: "none",
                 background: isLight ? "rgba(0,0,0,0.06)" : "rgba(255,255,255,0.08)",
@@ -330,13 +337,24 @@ export function ResearchResults({ tavilyResults, sedaResults, query, isLight, is
               ← Back
             </button>
           )}
-          <span style={{ fontSize: 16, fontWeight: 600, color: text }}>Results for &quot;{query}&quot;</span>
+          <span style={{
+            fontSize: isMobile ? 14 : 16,
+            fontWeight: 600,
+            color: text,
+            overflow: "hidden",
+            textOverflow: "ellipsis",
+            whiteSpace: "nowrap",
+            maxWidth: isMobile ? "100%" : undefined,
+          }}>
+            Results for &quot;{query}&quot;
+          </span>
         </div>
         <button
           type="button"
           onClick={handleOpenReader}
           style={{
-            padding: "8px 16px",
+            padding: isMobile ? "12px 16px" : "8px 16px",
+            minHeight: isMobile ? 44 : undefined,
             borderRadius: 10,
             border: "none",
             background: isLight ? "#1a1a1a" : "#6366f1",
@@ -408,21 +426,25 @@ export function ResearchResults({ tavilyResults, sedaResults, query, isLight, is
         style={{
           flex: 1,
           display: "flex",
-          gap: 20,
+          flexDirection: isMobile ? "column" : "row",
+          gap: isMobile ? 16 : 20,
           minHeight: 0,
-          padding: "20px 0",
-          overflowX: "auto",
+          padding: isMobile ? "16px 0" : "20px 0",
+          overflowX: isMobile ? "visible" : "auto",
         }}
       >
         {/* Tavily column */}
         <div
           style={{
-            flex: "1 1 0",
-            minWidth: 220,
+            flex: isMobile ? "0 0 auto" : "1 1 0",
+            minWidth: isMobile ? 0 : 220,
             display: "flex",
             flexDirection: "column",
-            borderRight: `1px solid ${border}`,
-            paddingRight: 20,
+            borderRight: isMobile ? "none" : `1px solid ${border}`,
+            borderBottom: isMobile ? `1px solid ${border}` : "none",
+            paddingRight: isMobile ? 0 : 20,
+            paddingBottom: isMobile ? 16 : 0,
+            minHeight: isMobile ? 200 : 0,
           }}
         >
           <div style={{ fontSize: 13, fontWeight: 600, color: textMuted, marginBottom: 12, textTransform: "uppercase", letterSpacing: "0.05em" }}>
@@ -439,7 +461,7 @@ export function ResearchResults({ tavilyResults, sedaResults, query, isLight, is
               <div style={{ color: textMuted, fontSize: 14 }}>No Tavily results</div>
             ) : (
               tavilyResults.map((r) => (
-                <ResultCard key={r.id} result={r} isLight={isLight} />
+                <ResultCard key={r.id} result={r} isLight={isLight} isMobile={isMobile} />
               ))
             )}
           </div>
@@ -448,10 +470,11 @@ export function ResearchResults({ tavilyResults, sedaResults, query, isLight, is
         {/* Seda column */}
         <div
           style={{
-            flex: "1 1 0",
-            minWidth: 220,
+            flex: isMobile ? "0 0 auto" : "1 1 0",
+            minWidth: isMobile ? 0 : 220,
             display: "flex",
             flexDirection: "column",
+            minHeight: isMobile ? 200 : 0,
           }}
         >
           <div style={{ fontSize: 13, fontWeight: 600, color: textMuted, marginBottom: 12, textTransform: "uppercase", letterSpacing: "0.05em" }}>
@@ -468,7 +491,7 @@ export function ResearchResults({ tavilyResults, sedaResults, query, isLight, is
               <div style={{ color: textMuted, fontSize: 14 }}>No Seda results</div>
             ) : (
               sedaResults.map((r) => (
-                <ResultCard key={r.id} result={r} isLight={isLight} />
+                <ResultCard key={r.id} result={r} isLight={isLight} isMobile={isMobile} />
               ))
             )}
           </div>

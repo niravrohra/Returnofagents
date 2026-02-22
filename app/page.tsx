@@ -7,6 +7,7 @@ import { ThemeToggle } from "@/components/theme-toggle";
 import { addReaderItem } from "@/lib/reader-storage";
 import { useSpeechRecognition } from "@/lib/voice";
 import { VoiceWaveform } from "@/components/voice-waveform";
+import { useIsMobile } from "@/hooks/use-mobile";
 import type { ResearchResult } from "@/components/research-results";
 
 const ResearchResults = dynamic(
@@ -403,8 +404,13 @@ function normalizeSedaResults(data: unknown): ResearchResult[] {
 }
 
 export default function Neel() {
+  const isMobile = useIsMobile();
   const [inputValue, setInputValue] = useState("");
   const [sidebarOpen, setSidebarOpen] = useState(true);
+
+  useEffect(() => {
+    if (isMobile) setSidebarOpen(false);
+  }, [isMobile]);
   const [chats, setChats] = useState<{ id: string; title: string }[]>([]);
   const [activeChatId, setActiveChatId] = useState<string | null>(null);
   const [uploadedFiles, setUploadedFiles] = useState<File[]>([]);
@@ -579,8 +585,11 @@ export default function Neel() {
       color: isLight ? "#1a1a1a" : "#b4b4b4",
     },
     logoWrapper: {
-      padding: 6,
+      width: 36,
+      height: 36,
+      padding: 0,
       borderRadius: 10,
+      overflow: "hidden",
       background: isLight ? "rgba(0,0,0,0.08)" : "rgba(255,255,255,0.15)",
       display: "flex",
       alignItems: "center",
@@ -591,16 +600,51 @@ export default function Neel() {
 
   return (
     <div style={themeStyles.root}>
+      {/* Mobile sidebar backdrop */}
+      {isMobile && sidebarOpen && (
+        <div
+          role="button"
+          tabIndex={0}
+          aria-label="Close sidebar"
+          style={{
+            position: "fixed",
+            inset: 0,
+            background: "rgba(0,0,0,0.5)",
+            zIndex: 40,
+            animation: "fadeIn 0.2s ease",
+          }}
+          onClick={() => setSidebarOpen(false)}
+          onKeyDown={(e) => e.key === "Escape" && setSidebarOpen(false)}
+        />
+      )}
       {/* Sidebar */}
       <div
         style={{
           ...themeStyles.sidebar,
-          width: sidebarOpen ? 260 : 0,
-          minWidth: sidebarOpen ? 260 : 0,
-          flexShrink: 0,
-          padding: sidebarOpen ? "8px 0" : 0,
-          overflow: "hidden",
-          transition: "width 0.2s ease, min-width 0.2s ease",
+          ...(isMobile
+            ? {
+                position: "fixed",
+                top: 0,
+                left: 0,
+                bottom: 0,
+                zIndex: 50,
+                width: sidebarOpen ? 280 : 0,
+                minWidth: sidebarOpen ? 280 : 0,
+                maxWidth: "85vw",
+                padding: sidebarOpen ? "8px 0" : 0,
+                overflow: "hidden",
+                transition: "width 0.2s ease",
+                boxShadow: sidebarOpen ? "4px 0 24px rgba(0,0,0,0.3)" : "none",
+                paddingTop: "max(8px, env(safe-area-inset-top))",
+              }
+            : {
+                width: sidebarOpen ? 260 : 0,
+                minWidth: sidebarOpen ? 260 : 0,
+                flexShrink: 0,
+                padding: sidebarOpen ? "8px 0" : 0,
+                overflow: "hidden",
+                transition: "width 0.2s ease, min-width 0.2s ease",
+              }),
         }}
       >
         {sidebarOpen && (
@@ -612,15 +656,15 @@ export default function Neel() {
                   <img
                     src="/logo.png"
                     alt="Logo"
-                    width={32}
-                    height={32}
+                    width={36}
+                    height={36}
                     onError={(e) => {
                       e.currentTarget.src = "/placeholder-logo.png";
                     }}
                     style={{
-                      width: 32,
-                      height: 32,
-                      objectFit: "contain",
+                      width: "100%",
+                      height: "100%",
+                      objectFit: "cover",
                       filter: "brightness(1.15) contrast(1.05)",
                     }}
                   />
@@ -678,23 +722,30 @@ export default function Neel() {
           style={{
             ...styles.iconBtn,
             position: "fixed",
-            left: 12,
-            top: 12,
+            left: isMobile ? "max(12px, env(safe-area-inset-left))" : 12,
+            top: isMobile ? "max(12px, env(safe-area-inset-top))" : 12,
             zIndex: 50,
             background: isLight ? "rgba(0,0,0,0.08)" : "#2a2a2a",
             color: isLight ? "#1a1a1a" : "#b4b4b4",
+            minWidth: isMobile ? 44 : undefined,
+            minHeight: isMobile ? 44 : undefined,
           }}
           title="Open sidebar"
           onClick={() => setSidebarOpen(true)}
+          aria-label="Open sidebar"
         >
           <SidebarToggleIcon />
         </button>
       )}
 
       {/* Main content */}
-      <div style={themeStyles.main}>
+      <div style={{ ...themeStyles.main, paddingLeft: isMobile ? 0 : undefined }}>
         {/* Top bar */}
-        <div style={styles.topBar}>
+        <div style={{
+          ...styles.topBar,
+          padding: isMobile ? "10px 12px 10px 56px" : "10px 16px",
+          paddingTop: isMobile ? "max(10px, env(safe-area-inset-top))" : 10,
+        }}>
           <button style={themeStyles.modelSelector}>
             Return of Agents
           </button>
@@ -708,7 +759,7 @@ export default function Neel() {
             display: "flex",
             flexDirection: "column",
             minHeight: 0,
-            padding: "0 16px",
+            padding: isMobile ? "0 12px" : "0 16px",
           }}
         >
           {/* Research results view */}
@@ -738,13 +789,13 @@ export default function Neel() {
             flexDirection: "column",
             alignItems: "center",
             justifyContent: "center",
-            gap: 24,
+            gap: isMobile ? 16 : 24,
           }}
         >
           {/* Only show greeting when no files uploaded */}
           {uploadedFiles.length === 0 && (
             <>
-              <span style={themeStyles.readyText}>What would you like to read today?</span>
+              <span style={{ ...themeStyles.readyText, fontSize: isMobile ? 24 : 32 }}>What would you like to read today?</span>
               {/* Upload button */}
               <div style={{ display: "flex", gap: 12 }}>
                 <button
@@ -831,7 +882,11 @@ export default function Neel() {
               ))}
             </div>
           )}
-          <div style={styles.inputArea}>
+          <div style={{
+            ...styles.inputArea,
+            padding: isMobile ? "0 0 20px" : "0 16px 24px",
+            paddingBottom: isMobile ? "max(20px, env(safe-area-inset-bottom))" : 24,
+          }}>
           <input
             ref={fileInputRef}
             type="file"
@@ -840,7 +895,11 @@ export default function Neel() {
             style={{ display: "none" }}
             onChange={handleFileUpload}
           />
-          <div style={themeStyles.inputBox}>
+          <div style={{
+            ...themeStyles.inputBox,
+            padding: isMobile ? "14px 12px" : "12px 14px",
+            minHeight: isMobile ? 52 : undefined,
+          }}>
             <input
               ref={inputRef}
               style={themeStyles.inputField}
@@ -857,7 +916,10 @@ export default function Neel() {
             />
             <button
               type="button"
-              style={styles.inputBtn}
+              style={{
+                ...styles.inputBtn,
+                ...(isMobile ? { minWidth: 44, minHeight: 44 } : {}),
+              }}
               onClick={() => handleResearchSearch(inputValue)}
               disabled={researchLoading}
               title="Search"
@@ -873,6 +935,7 @@ export default function Neel() {
               style={{
                 ...styles.inputBtn,
                 ...(voiceListening ? { color: isLight ? "#dc2626" : "#f87171", background: isLight ? "rgba(220,38,38,0.1)" : "rgba(248,113,113,0.15)" } : {}),
+                ...(isMobile ? { minWidth: 44, minHeight: 44 } : {}),
               }}
               onClick={handleVoiceInput}
               disabled={researchLoading}
